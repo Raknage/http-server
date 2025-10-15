@@ -11,17 +11,17 @@ app.use("/app", middlewareMetricsInc);
 
 app.use("/app", express.static("./src/app"));
 
-app.get("/healthz", (req, res) => {
+app.get("/api/healthz", (req, res) => {
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.status(200).send("OK");
 });
 
-app.get("/metrics", (req, res) => {
+app.get("/api/metrics", (req, res) => {
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.status(200).send(`Hits: ${config.fileserverHits}`);
 });
 
-app.get("/reset", (req, res) => {
+app.get("/api/reset", (req, res) => {
   config.fileserverHits = 0;
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.status(200).send(`Hits: ${config.fileserverHits}`);
