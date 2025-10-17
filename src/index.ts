@@ -16,12 +16,19 @@ app.get("/api/healthz", (req, res) => {
   res.status(200).send("OK");
 });
 
-app.get("/api/metrics", (req, res) => {
-  res.set("Content-Type", "text/plain; charset=utf-8");
-  res.status(200).send(`Hits: ${config.fileserverHits}`);
+app.get("/admin/metrics", (req, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.status(200).send(`
+    <html>
+      <body>
+        <h1>Welcome, Chirpy Admin</h1>
+        <p>Chirpy has been visited ${config.fileserverHits} times!</p>
+      </body>
+    </html>
+    `);
 });
 
-app.get("/api/reset", (req, res) => {
+app.get("/admin/reset", (req, res) => {
   config.fileserverHits = 0;
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.status(200).send(`Hits: ${config.fileserverHits}`);
