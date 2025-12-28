@@ -28,10 +28,10 @@ app.get("/admin/metrics", (req, res) => {
     `);
 });
 
-app.get("/admin/reset", (req, res) => {
+app.post("/admin/reset", (req, res) => {
   config.fileserverHits = 0;
   res.set("Content-Type", "text/plain; charset=utf-8");
-  res.status(200).send(`Hits: ${config.fileserverHits}`);
+  res.status(200).send(`Hits: ${config.fileserverHits}\n`);
 });
 
 app.listen(PORT, () => {
