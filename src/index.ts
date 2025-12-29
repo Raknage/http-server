@@ -8,7 +8,7 @@ const PORT = 8080;
 
 app.use(middlewareLogResponses);
 app.use("/app", middlewareMetricsInc);
-
+app.use(express.json());
 app.use("/app", express.static("./src/app"));
 
 app.get("/api/healthz", (req, res) => {
@@ -35,34 +35,26 @@ app.post("/admin/reset", (req, res) => {
 });
 
 app.post("/api/validate_chirp", (req, res) => {
-  let reqBody = "";
+  try {
+    const parsedBody: { body: string } = req.body;
+    res.header("Content-Type", "application/json");
 
-  req.on("data", (chunk) => {
-    reqBody += chunk;
-  });
-
-  req.on("end", () => {
-    try {
-      const parsedBody: { body: string } = JSON.parse(reqBody);
-      res.header("Content-Type", "application/json");
-
-      if (parsedBody.body.length > 140) {
-        const body = JSON.stringify({
-          error: "Chirp is too long",
-        });
-        res.status(400).send(body);
-        return;
-      }
-
+    if (parsedBody.body.length > 140) {
       const body = JSON.stringify({
-        valid: true,
+        error: "Chirp is too long",
       });
-
-      res.status(200).send(body);
-    } catch (error) {
-      res.status(400).send("Invalid JSON");
+      res.status(400).send(body);
+      return;
     }
-  });
+
+    const body = JSON.stringify({
+      valid: true,
+    });
+
+    res.status(200).send(body);
+  } catch (error) {
+    res.status(400).send("Invalid JSON");
+  }
 });
 
 app.listen(PORT, () => {
