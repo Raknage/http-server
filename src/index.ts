@@ -1,6 +1,7 @@
 import express from "express";
 import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
+import { errorHandler } from "./app/middleware/errorHandler.js";
 import { config } from "./config.js";
 
 const app = express();
@@ -34,17 +35,13 @@ app.post("/admin/reset", (req, res) => {
   res.status(200).send(`Hits: ${config.fileserverHits}\n`);
 });
 
-app.post("/api/validate_chirp", (req, res) => {
+app.post("/api/validate_chirp", (req, res, next) => {
   try {
     const parsedBody: { body: string } = req.body;
     res.header("Content-Type", "application/json");
 
     if (parsedBody.body.length > 140) {
-      const body = JSON.stringify({
-        error: "Chirp is too long",
-      });
-      res.status(400).send(body);
-      return;
+      throw new Error("Chirp is too long");
     }
 
     const profane = ["kerfuffle", "sharbert", "fornax"];
@@ -61,9 +58,11 @@ app.post("/api/validate_chirp", (req, res) => {
 
     res.status(200).send(body);
   } catch (error) {
-    res.status(400).send("Invalid JSON");
+    next(error);
   }
 });
+
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running in port ${PORT}`);
