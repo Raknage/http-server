@@ -47,8 +47,16 @@ app.post("/api/validate_chirp", (req, res) => {
       return;
     }
 
+    const profane = ["kerfuffle", "sharbert", "fornax"];
+    let cleanedBody = parsedBody.body;
+
+    for (const word of profane) {
+      const regex = new RegExp(word, "gi");
+      cleanedBody = cleanedBody.replace(regex, "****");
+    }
+
     const body = JSON.stringify({
-      valid: true,
+      cleanedBody,
     });
 
     res.status(200).send(body);
