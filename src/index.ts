@@ -1,7 +1,7 @@
 import express from "express";
 import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
-import { errorHandler } from "./app/middleware/errorHandler.js";
+import { BadRequestError, errorHandler } from "./app/middleware/errorHandler.js";
 import { config } from "./config.js";
 
 const app = express();
@@ -41,7 +41,7 @@ app.post("/api/validate_chirp", (req, res, next) => {
     res.header("Content-Type", "application/json");
 
     if (parsedBody.body.length > 140) {
-      throw new Error("Chirp is too long");
+      throw new BadRequestError("Chirp is too long. Max length is 140");
     }
 
     const profane = ["kerfuffle", "sharbert", "fornax"];
