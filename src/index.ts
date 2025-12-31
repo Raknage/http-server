@@ -1,11 +1,18 @@
 import express from "express";
+import config from "./config.js";
 import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
 import { BadRequestError, errorHandler } from "./app/middleware/errorHandler.js";
-import { config } from "./config.js";
 
 const app = express();
 const PORT = 8080;
+
+import postgres from "postgres";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { drizzle } from "drizzle-orm/postgres-js";
+
+const migrationClient = postgres(config.db.url, { max: 1 });
+await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
 app.use(middlewareLogResponses);
 app.use("/app", middlewareMetricsInc);
@@ -23,16 +30,16 @@ app.get("/admin/metrics", (req, res) => {
     <html>
       <body>
         <h1>Welcome, Chirpy Admin</h1>
-        <p>Chirpy has been visited ${config.fileserverHits} times!</p>
+        <p>Chirpy has been visited ${config.api.fileserverHits} times!</p>
       </body>
     </html>
     `);
 });
 
 app.post("/admin/reset", (req, res) => {
-  config.fileserverHits = 0;
+  config.api.fileserverHits = 0;
   res.set("Content-Type", "text/plain; charset=utf-8");
-  res.status(200).send(`Hits: ${config.fileserverHits}\n`);
+  res.status(200).send(`Hits: ${config.api.fileserverHits}\n`);
 });
 
 app.post("/api/validate_chirp", (req, res, next) => {
