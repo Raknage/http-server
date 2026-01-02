@@ -11,7 +11,8 @@
     "dev": "npx tsc && node dist/index.js",
     "psql": "sudo -u postgres psql",
     "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate"
+    "migrate": "drizzle-kit migrate",
+    "studio": "npx drizzle-kit studio"
   },
   "keywords": [],
   "author": "",

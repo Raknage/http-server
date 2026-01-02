@@ -7,6 +7,7 @@ import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
 import { BadRequestError, errorHandler } from "./app/middleware/errorHandler.js";
 import { createUser, resetUsers } from "./db/queries/users.js";
+import { createChirp } from "./db/queries/chirps.js";
 
 const app = express();
 const PORT = 8080;
@@ -57,7 +58,6 @@ app.post("/admin/reset", async (req, res) => {
     return;
   }
 
-  // Update the POST /admin/reset endpoint to delete all users in the database (but don't mess with the schema). You'll need a new query for this.
   const deletedUsers = await resetUsers();
   console.log(deletedUsers);
 
@@ -66,9 +66,15 @@ app.post("/admin/reset", async (req, res) => {
   res.status(200).send(`Hits: ${config.api.fileserverHits}\n`);
 });
 
-app.post("/api/validate_chirp", (req, res, next) => {
+type Chirp = {
+  body: string;
+  userId: string;
+};
+
+// curl -X POST -H "Content-Type: application/json" -d '{"body":"Hello, world!","userId":"8ce57066-a19e-4528-a83b-4a25e1ec7c24"}' http://localhost:8080/api/chirps
+app.post("/api/chirps", async (req, res, next) => {
   try {
-    const parsedBody: { body: string } = req.body;
+    const parsedBody: Chirp = req.body;
     res.header("Content-Type", "application/json");
 
     if (parsedBody.body.length > 140) {
@@ -83,11 +89,13 @@ app.post("/api/validate_chirp", (req, res, next) => {
       cleanedBody = cleanedBody.replace(regex, "****");
     }
 
-    const body = JSON.stringify({
-      cleanedBody,
-    });
+    const newChirp = await createChirp({ body: cleanedBody, userId: parsedBody.userId });
 
-    res.status(200).send(body);
+    // const body = JSON.stringify({
+    //   cleanedBody,
+    // });
+
+    res.status(201).json(newChirp);
   } catch (error) {
     next(error);
   }
