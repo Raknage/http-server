@@ -1,4 +1,6 @@
 import * as argon2 from "argon2";
+import { JwtPayload } from "jsonwebtoken";
+import * as jwt from "jsonwebtoken";
 
 export async function hashPassword(password: string) {
   const hash = await argon2.hash(password);
@@ -12,3 +14,28 @@ export async function checkPasswordHash(hash: string, password: string) {
     return false;
   }
 }
+
+type Payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
+
+export function makeJWT(userID: string, expiresIn: number, secret: string) {
+  const payload: Payload = {
+    iss: "chirpy",
+    sub: userID,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000 + expiresIn),
+  };
+  return jwt.sign(payload, secret);
+}
+
+export function validateJWT(token: string, secret: string) {
+  const decoded = jwt.verify(token, secret) as Payload;
+
+  if (!decoded) {
+    throw new Error("Invalid JWT token");
+  } else if (!decoded.sub) {
+    throw new Error("No user ID in JWT token");
+  }
+
+  return decoded.sub;
+}
+
