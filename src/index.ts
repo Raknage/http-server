@@ -7,7 +7,7 @@ import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
 import { BadRequestError, errorHandler } from "./app/middleware/errorHandler.js";
 import { createUser, resetUsers } from "./db/queries/users.js";
-import { createChirp } from "./db/queries/chirps.js";
+import { createChirp, getChirps } from "./db/queries/chirps.js";
 
 const app = express();
 const PORT = 8080;
@@ -71,6 +71,16 @@ type Chirp = {
   userId: string;
 };
 
+app.get("/api/chirps", async (req, res, next) => {
+  try {
+    const chirps = await getChirps();
+    res.header("Content-Type", "application/json");
+    res.status(200).json(chirps);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // curl -X POST -H "Content-Type: application/json" -d '{"body":"Hello, world!","userId":"8ce57066-a19e-4528-a83b-4a25e1ec7c24"}' http://localhost:8080/api/chirps
 app.post("/api/chirps", async (req, res, next) => {
   try {
@@ -90,10 +100,6 @@ app.post("/api/chirps", async (req, res, next) => {
     }
 
     const newChirp = await createChirp({ body: cleanedBody, userId: parsedBody.userId });
-
-    // const body = JSON.stringify({
-    //   cleanedBody,
-    // });
 
     res.status(201).json(newChirp);
   } catch (error) {
