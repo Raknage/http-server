@@ -7,7 +7,8 @@ import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
 import { BadRequestError, errorHandler } from "./app/middleware/errorHandler.js";
 import { createUser, resetUsers } from "./db/queries/users.js";
-import { createChirp, getChirps } from "./db/queries/chirps.js";
+import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
+import { get } from "http";
 
 const app = express();
 const PORT = 8080;
@@ -76,6 +77,21 @@ app.get("/api/chirps", async (req, res, next) => {
     const chirps = await getChirps();
     res.header("Content-Type", "application/json");
     res.status(200).json(chirps);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/chirps/:chirpID", async (req, res, next) => {
+  try {
+    const chirp = await getChirpById(req.params.chirpID);
+    if (!chirp) {
+      res.status(404).send("Not found");
+      return;
+    }
+
+    res.header("Content-Type", "application/json");
+    res.status(200).json(chirp);
   } catch (error) {
     next(error);
   }
