@@ -6,9 +6,10 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
 import { BadRequestError, errorHandler } from "./app/middleware/errorHandler.js";
-import { createUser, resetUsers } from "./db/queries/users.js";
+import { createUser, getUserByEmail, resetUsers } from "./db/queries/users.js";
 import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
-import { get } from "http";
+import { checkPasswordHash, hashPassword } from "./auth.js";
+import { NewUser, SelectUser } from "./db/schema.js";
 
 const app = express();
 const PORT = 8080;
@@ -21,15 +22,37 @@ app.use("/app", middlewareMetricsInc);
 app.use(express.json());
 app.use("/app", express.static("./src/app"));
 
-// curl -X POST -H "Content-Type: application/json" -d '{"email":"example@email.com"}' http://localhost:8080/api/users
+type UserResponse = Omit<SelectUser, "hashedPassword">;
+
+// curl -X POST -H "Content-Type: application/json" -d '{"email":"example@email.com","password":"password123"}' http://localhost:8080/api/users
 app.post("/api/users", async (req, res, next) => {
   try {
-    const parsedBody: { email: string } = req.body;
-    const newUser = await createUser({ email: parsedBody.email });
+    const parsedBody: { email: string; password: string } = req.body;
+    if (!parsedBody.password) {
+      throw new Error("Password missing");
+    }
+    const hashedPassword = await hashPassword(parsedBody.password);
+    const newUser: SelectUser = await createUser({ email: parsedBody.email, hashedPassword });
     if (!newUser) {
       throw new Error(`User for email ${parsedBody.email} already exists`);
     }
-    res.status(201).json(newUser);
+    res
+      .status(201)
+      .json({ id: newUser.id, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt, email: newUser.email });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/login", async (req, res, next) => {
+  try {
+    const reqUser: { password: string; email: string } = req.body;
+    const user: SelectUser = await getUserByEmail(reqUser.email);
+    if (await checkPasswordHash(user.hashedPassword, reqUser.password)) {
+      res.status(200).json({ id: user.id, createdAt: user.createdAt, updatedAt: user.updatedAt, email: user.email });
+    } else {
+      res.status(401).send("Unathorized");
+    }
   } catch (error) {
     next(error);
   }

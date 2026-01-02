@@ -11,6 +11,7 @@ const timestamps = {
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: varchar("email", { length: 256 }).unique().notNull(),
+  hashedPassword: varchar("hashed_password").notNull().default("unset"),
   ...timestamps,
 });
 
@@ -24,4 +25,5 @@ export const chirps = pgTable("chirps", {
 });
 
 export type NewUser = typeof users.$inferInsert;
+export type SelectUser = typeof users.$inferSelect;
 export type NewChirp = typeof chirps.$inferInsert;
