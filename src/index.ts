@@ -8,8 +8,8 @@ import { middlewareMetricsInc } from "./app/middleware/metrics.js";
 import { BadRequestError, errorHandler } from "./app/middleware/errorHandler.js";
 import { createUser, getUserByEmail, resetUsers } from "./db/queries/users.js";
 import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
-import { checkPasswordHash, hashPassword } from "./auth.js";
-import { NewUser, SelectUser } from "./db/schema.js";
+import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, validateJWT } from "./auth.js";
+import { SelectUser } from "./db/schema.js";
 
 const app = express();
 const PORT = 8080;
@@ -23,6 +23,17 @@ app.use(express.json());
 app.use("/app", express.static("./src/app"));
 
 type UserResponse = Omit<SelectUser, "hashedPassword">;
+
+type Chirp = {
+  body: string;
+  userId: string;
+};
+
+type ReqUser = {
+  password: string;
+  email: string;
+  exriresInSeconds?: number;
+};
 
 // curl -X POST -H "Content-Type: application/json" -d '{"email":"example@email.com","password":"password123"}' http://localhost:8080/api/users
 app.post("/api/users", async (req, res, next) => {
@@ -46,10 +57,19 @@ app.post("/api/users", async (req, res, next) => {
 
 app.post("/api/login", async (req, res, next) => {
   try {
-    const reqUser: { password: string; email: string } = req.body;
+    const reqUser: ReqUser = req.body;
     const user: SelectUser = await getUserByEmail(reqUser.email);
     if (await checkPasswordHash(user.hashedPassword, reqUser.password)) {
-      res.status(200).json({ id: user.id, createdAt: user.createdAt, updatedAt: user.updatedAt, email: user.email });
+      const expiry = reqUser.exriresInSeconds && reqUser.exriresInSeconds < 3600 ? reqUser.exriresInSeconds : 3600;
+      const jwt = makeJWT(user.id, expiry, config.api.secret);
+      const responseJson = {
+        id: user.id,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        email: user.email,
+        token: jwt,
+      };
+      res.status(200).json(responseJson);
     } else {
       res.status(401).send("Unathorized");
     }
@@ -90,11 +110,6 @@ app.post("/admin/reset", async (req, res) => {
   res.status(200).send(`Hits: ${config.api.fileserverHits}\n`);
 });
 
-type Chirp = {
-  body: string;
-  userId: string;
-};
-
 app.get("/api/chirps", async (req, res, next) => {
   try {
     const chirps = await getChirps();
@@ -123,6 +138,8 @@ app.get("/api/chirps/:chirpID", async (req, res, next) => {
 // curl -X POST -H "Content-Type: application/json" -d '{"body":"Hello, world!","userId":"8ce57066-a19e-4528-a83b-4a25e1ec7c24"}' http://localhost:8080/api/chirps
 app.post("/api/chirps", async (req, res, next) => {
   try {
+    const token = getBearerToken(req);
+    const validatedUserId = validateJWT(token, config.api.secret);
     const parsedBody: Chirp = req.body;
     res.header("Content-Type", "application/json");
 
@@ -138,7 +155,7 @@ app.post("/api/chirps", async (req, res, next) => {
       cleanedBody = cleanedBody.replace(regex, "****");
     }
 
-    const newChirp = await createChirp({ body: cleanedBody, userId: parsedBody.userId });
+    const newChirp = await createChirp({ body: cleanedBody, userId: validatedUserId });
 
     res.status(201).json(newChirp);
   } catch (error) {
