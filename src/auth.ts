@@ -50,11 +50,11 @@ export function getBearerToken(req: Request): string {
   const authorizationHeader = req.get("Authorization");
   console.log(`Authorization token: ${authorizationHeader}`);
   if (!authorizationHeader) {
-    throw new BadRequestError("Missing auth header");
+    throw new UnauthorizedError("Missing or malformed token");
   }
   const match = authorizationHeader.match(/^Bearer\s+(.+)$/);
   if (!match) {
-    throw new BadRequestError("Invalid auth header format");
+    throw new UnauthorizedError("Invalid auth header format");
   }
   return match[1];
 }

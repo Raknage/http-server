@@ -1,4 +1,4 @@
-import express, { response } from "express";
+import express from "express";
 import config from "./config.js";
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -6,9 +6,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
 import { BadRequestError, errorHandler, UnauthorizedError } from "./app/middleware/errorHandler.js";
-import { createUser, getUserByEmail, resetUsers } from "./db/queries/users.js";
+import { createUser, getUserByEmail, resetUsers, updateUser } from "./db/queries/users.js";
 import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
-import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
+import { checkPasswordHash, getBearerToken, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
 import { SelectUser } from "./db/schema.js";
 import {
   createRefreshToken,
@@ -16,6 +16,7 @@ import {
   getUserFromRefreshToken,
   revokeRefreshToken,
 } from "./db/queries/tokens.js";
+import { extractCredentials } from "./helpers.js";
 
 const app = express();
 const PORT = 8080;
@@ -43,14 +44,13 @@ type ReqUser = {
 // curl -X POST -H "Content-Type: application/json" -d '{"email":"example@email.com","password":"password123"}' http://localhost:8080/api/users
 app.post("/api/users", async (req, res, next) => {
   try {
-    const parsedBody: { email: string; password: string } = req.body;
-    if (!parsedBody.password) {
-      throw new BadRequestError("Password missing");
-    }
-    const hashedPassword = await hashPassword(parsedBody.password);
-    const newUser: SelectUser = await createUser({ email: parsedBody.email, hashedPassword });
+    const credentials = await extractCredentials(req);
+    const newUser: SelectUser = await createUser({
+      email: credentials.email,
+      hashedPassword: credentials.hashedPassword,
+    });
     if (!newUser) {
-      throw new BadRequestError(`User for email ${parsedBody.email} already exists`);
+      throw new BadRequestError(`User for email ${credentials.email} already exists`);
     }
     console.log(`User created:`);
     console.log(newUser);
@@ -231,6 +231,25 @@ app.post("/api/chirps", async (req, res, next) => {
     const newChirp = await createChirp({ body: cleanedBody, userId: validatedUserId });
 
     res.status(201).json(newChirp);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/users", async (req, res, next) => {
+  try {
+    const authToken = getBearerToken(req);
+    console.log(`Authorization token: ${authToken}`);
+
+    const userId = validateJWT(authToken, config.api.secret);
+    const credentials = await extractCredentials(req);
+
+    const updatedUser = await updateUser(userId, credentials.email, credentials.hashedPassword);
+    console.log(updatedUser);
+    const { hashedPassword, ...resUser } = updatedUser;
+    console.log(resUser);
+
+    res.status(200).json(resUser);
   } catch (error) {
     next(error);
   }

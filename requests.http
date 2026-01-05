@@ -46,3 +46,13 @@ Authorization: Bearer {{login.response.body.refreshToken}}
 ### Revoke Token
 POST {{baseUrl}}/api/revoke
 Authorization: Bearer {{login.response.body.refreshToken}}
+
+### Update User Credentials
+PUT {{baseUrl}}/api/users
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+    "email": "new.email@test.com",
+    "password": "password456"
+}
