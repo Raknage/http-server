@@ -65,4 +65,12 @@ describe("Auth token", () => {
 
     expect(() => getBearerToken(req)).toThrow("Missing auth header");
   });
+
+  it("should throw error if auth header is malformed", () => {
+    const req = {
+      get: (header: string) => "Bearer",
+    } as unknown as Request;
+
+    expect(() => getBearerToken(req)).toThrow("Invalid auth header format");
+  });
 });

@@ -1,15 +1,21 @@
-import express from "express";
+import express, { response } from "express";
 import config from "./config.js";
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { middlewareLogResponses } from "./app/middleware/log.js";
 import { middlewareMetricsInc } from "./app/middleware/metrics.js";
-import { BadRequestError, errorHandler } from "./app/middleware/errorHandler.js";
+import { BadRequestError, errorHandler, UnauthorizedError } from "./app/middleware/errorHandler.js";
 import { createUser, getUserByEmail, resetUsers } from "./db/queries/users.js";
 import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
-import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, validateJWT } from "./auth.js";
+import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, makeRefreshToken, validateJWT } from "./auth.js";
 import { SelectUser } from "./db/schema.js";
+import {
+  createRefreshToken,
+  getRefreshToken,
+  getUserFromRefreshToken,
+  revokeRefreshToken,
+} from "./db/queries/tokens.js";
 
 const app = express();
 const PORT = 8080;
@@ -32,7 +38,6 @@ type Chirp = {
 type ReqUser = {
   password: string;
   email: string;
-  exriresInSeconds?: number;
 };
 
 // curl -X POST -H "Content-Type: application/json" -d '{"email":"example@email.com","password":"password123"}' http://localhost:8080/api/users
@@ -40,13 +45,15 @@ app.post("/api/users", async (req, res, next) => {
   try {
     const parsedBody: { email: string; password: string } = req.body;
     if (!parsedBody.password) {
-      throw new Error("Password missing");
+      throw new BadRequestError("Password missing");
     }
     const hashedPassword = await hashPassword(parsedBody.password);
     const newUser: SelectUser = await createUser({ email: parsedBody.email, hashedPassword });
     if (!newUser) {
-      throw new Error(`User for email ${parsedBody.email} already exists`);
+      throw new BadRequestError(`User for email ${parsedBody.email} already exists`);
     }
+    console.log(`User created:`);
+    console.log(newUser);
     res
       .status(201)
       .json({ id: newUser.id, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt, email: newUser.email });
@@ -60,19 +67,76 @@ app.post("/api/login", async (req, res, next) => {
     const reqUser: ReqUser = req.body;
     const user: SelectUser = await getUserByEmail(reqUser.email);
     if (await checkPasswordHash(user.hashedPassword, reqUser.password)) {
-      const expiry = reqUser.exriresInSeconds && reqUser.exriresInSeconds < 3600 ? reqUser.exriresInSeconds : 3600;
+      const expiry = 3600;
       const jwt = makeJWT(user.id, expiry, config.api.secret);
+      const refreshToken = makeRefreshToken();
+      const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+      createRefreshToken(refreshToken, user.id, expiresAt);
       const responseJson = {
         id: user.id,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         email: user.email,
         token: jwt,
+        refreshToken,
       };
+
+      console.log(`User login:`);
+      console.log(responseJson);
+
       res.status(200).json(responseJson);
     } else {
+      console.log(`Login failed:`);
+      console.log(reqUser);
+
       res.status(401).send("Unathorized");
     }
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/refresh", async (req, res, next) => {
+  try {
+    const token = getBearerToken(req);
+    const refreshToken = await getRefreshToken(token);
+    const today = new Date(Date.now());
+
+    console.log(`Refreshing token:`);
+    console.log(`Bearer token: ${token}`);
+    console.log(`Resfresh token:`);
+    console.log(refreshToken);
+
+    if (refreshToken.revokedAt) {
+      console.log(`Refresh token revoked`);
+      res.status(401).send("Refresh token revoked");
+    } else if (refreshToken.expiresAt < today) {
+      console.log(`Refresh token expired`);
+      res.status(401).send("Refresh token expired");
+    } else {
+      const user = await getUserFromRefreshToken(refreshToken.userId);
+      console.log(`User from token:`);
+      console.log(user);
+
+      const newToken = makeJWT(user.id, 3600, config.api.secret);
+      console.log(`New JWT token: ${newToken}`);
+
+      res.status(200).json({ token: newToken });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/revoke", async (req, res, next) => {
+  try {
+    const token = getBearerToken(req);
+    const revokedToken = await revokeRefreshToken(token);
+
+    console.log(`Revoke token:`);
+    console.log(revokedToken);
+
+    res.status(204).send("OK");
   } catch (error) {
     next(error);
   }
@@ -103,7 +167,10 @@ app.post("/admin/reset", async (req, res) => {
   }
 
   const deletedUsers = await resetUsers();
-  console.log(deletedUsers);
+  console.log("deleted users:");
+  for (const user of deletedUsers) {
+    console.log(`  - ${user.email}`);
+  }
 
   config.api.fileserverHits = 0;
   res.set("Content-Type", "text/plain; charset=utf-8");
@@ -139,7 +206,13 @@ app.get("/api/chirps/:chirpID", async (req, res, next) => {
 app.post("/api/chirps", async (req, res, next) => {
   try {
     const token = getBearerToken(req);
+    console.log(`validating token: ${token}`);
     const validatedUserId = validateJWT(token, config.api.secret);
+    console.log(`Validated user ID: ${validatedUserId}`);
+    if (!validatedUserId) {
+      res.status(401).send("Invalid JWT");
+      throw new UnauthorizedError("JWT validation failed");
+    }
     const parsedBody: Chirp = req.body;
     res.header("Content-Type", "application/json");
 

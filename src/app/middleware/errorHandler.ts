@@ -24,21 +24,21 @@ export class BadRequestError extends Error {
 }
 
 // 401
-class UnauthorizedError extends Error {
+export class UnauthorizedError extends Error {
   constructor(message: string) {
     super(message);
   }
 }
 
 // 403
-class ForbiddenError extends Error {
+export class ForbiddenError extends Error {
   constructor(message: string) {
     super(message);
   }
 }
 
 // 404
-class NotFoundError extends Error {
+export class NotFoundError extends Error {
   constructor(message: string) {
     super(message);
   }

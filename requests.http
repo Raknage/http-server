@@ -1,0 +1,48 @@
+@baseUrl = http://localhost:8080
+
+### Reset Database
+POST {{baseUrl}}/admin/reset
+
+### Create User
+# @name createUser
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "password": "password123"
+}
+
+### Login
+# @name login
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "password": "password123"
+}
+
+### Create Chirp
+# @name createChirp
+POST {{baseUrl}}/api/chirps
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+    "body": "This is a test chirp!"
+}
+
+### Get All Chirps
+GET {{baseUrl}}/api/chirps
+
+### Get Specific Chirp
+GET {{baseUrl}}/api/chirps/{{createChirp.response.body.id}}
+
+### Refresh Token
+POST {{baseUrl}}/api/refresh
+Authorization: Bearer {{login.response.body.refreshToken}}
+
+### Revoke Token
+POST {{baseUrl}}/api/revoke
+Authorization: Bearer {{login.response.body.refreshToken}}

@@ -1,6 +1,8 @@
 import * as argon2 from "argon2";
+import { randomBytes } from "crypto";
 import { Request } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { BadRequestError, NotFoundError, UnauthorizedError } from "./app/middleware/errorHandler.js";
 
 type Payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
@@ -17,7 +19,7 @@ export async function checkPasswordHash(hash: string, password: string) {
   }
 }
 
-export function makeJWT(userID: string, expiresIn: number, secret: string) {
+export function makeJWT(userID: string, expiresIn: number = 3600, secret: string) {
   const payload: Payload = {
     iss: "chirpy",
     sub: userID,
@@ -28,12 +30,17 @@ export function makeJWT(userID: string, expiresIn: number, secret: string) {
 }
 
 export function validateJWT(token: string, secret: string) {
-  const decoded = jwt.verify(token, secret) as Payload;
+  let decoded: Payload;
+  try {
+    decoded = jwt.verify(token, secret) as Payload;
+  } catch (e) {
+    throw new UnauthorizedError("Invalid JWT token");
+  }
 
   if (!decoded) {
-    throw new Error("Invalid JWT token");
+    throw new UnauthorizedError("Invalid JWT token");
   } else if (!decoded.sub) {
-    throw new Error("No user ID in JWT token");
+    throw new NotFoundError("No user ID in JWT token");
   }
 
   return decoded.sub;
@@ -41,9 +48,17 @@ export function validateJWT(token: string, secret: string) {
 
 export function getBearerToken(req: Request): string {
   const authorizationHeader = req.get("Authorization");
+  console.log(`Authorization token: ${authorizationHeader}`);
   if (!authorizationHeader) {
-    throw new Error("Missing auth header");
+    throw new BadRequestError("Missing auth header");
   }
-  const tokenString = authorizationHeader.replace("Bearer ", "");
-  return tokenString;
+  const match = authorizationHeader.match(/^Bearer\s+(.+)$/);
+  if (!match) {
+    throw new BadRequestError("Invalid auth header format");
+  }
+  return match[1];
+}
+
+export function makeRefreshToken() {
+  return randomBytes(32).toString("hex");
 }
