@@ -1,6 +1,8 @@
 import { Router } from "express";
-import { NotFoundError } from "../app/middleware/errorHandler.js";
+import { NotFoundError, UnauthorizedError } from "../app/middleware/errorHandler.js";
 import { upgradeUserToChirpyRed } from "../db/queries/users.js";
+import { getAPIKey } from "../auth.js";
+import config from "../config.js";
 
 type PolkaResponse = {
   event: "user.upgraded";
@@ -13,6 +15,12 @@ const router = Router();
 
 router.route("/").post(async (req, res, next) => {
   try {
+    const apiKey = getAPIKey(req);
+    console.log(apiKey);
+    console.log(config.api.polkaKey);
+    if (apiKey !== config.api.polkaKey) {
+      throw new UnauthorizedError("API key mismatch");
+    }
     const reqBody: PolkaResponse = req.body;
     if (reqBody.event !== "user.upgraded") {
       res.status(204).send();

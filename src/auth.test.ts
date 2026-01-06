@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { checkPasswordHash, getBearerToken, hashPassword, makeJWT, validateJWT } from "./auth";
+import { checkPasswordHash, getAPIKey, getBearerToken, hashPassword, makeJWT, validateJWT } from "./auth";
 import { request, Request } from "express";
 
 describe("Password Hashing", () => {
@@ -63,7 +63,7 @@ describe("Auth token", () => {
       get: (header: string) => undefined,
     } as unknown as Request;
 
-    expect(() => getBearerToken(req)).toThrow("Missing auth header");
+    expect(() => getBearerToken(req)).toThrow("Missing or malformed token");
   });
 
   it("should throw error if auth header is malformed", () => {
@@ -72,5 +72,35 @@ describe("Auth token", () => {
     } as unknown as Request;
 
     expect(() => getBearerToken(req)).toThrow("Invalid auth header format");
+  });
+});
+
+describe("API key", () => {
+  it("should return API key", () => {
+    const token = "kj2351hlk3215h";
+    const req = {
+      get: (header: string) => {
+        if (header === "Authorization") return `ApiKey ${token}`;
+        return undefined;
+      },
+    } as unknown as Request;
+
+    expect(getAPIKey(req)).toBe(token);
+  });
+
+  it("should throw error if auth header is missing", () => {
+    const req = {
+      get: (header: string) => undefined,
+    } as unknown as Request;
+
+    expect(() => getAPIKey(req)).toThrow("Missing API key");
+  });
+
+  it("should throw error if auth header is malformed", () => {
+    const req = {
+      get: (header: string) => "ApiKey",
+    } as unknown as Request;
+
+    expect(() => getAPIKey(req)).toThrow("Invalid auth header format");
   });
 });

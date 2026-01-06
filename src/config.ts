@@ -4,6 +4,7 @@ type APIConfig = {
   fileserverHits: number;
   platform: string;
   secret: string;
+  polkaKey: string;
 };
 
 type DBConfig = {
@@ -22,8 +23,9 @@ if (!process.env.DB_URL) {
 const url: string = process.env.DB_URL;
 const platform = process.env.PLATFORM;
 const secret = process.env.SECRET;
+const polkaKey = process.env.POLKA_KEY;
 
 export default {
-  api: { fileserverHits: 0, platform, secret } as APIConfig,
+  api: { fileserverHits: 0, platform, secret, polkaKey } as APIConfig,
   db: { migrationConfig, url } as DBConfig,
 };
