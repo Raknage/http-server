@@ -10,6 +10,7 @@ import adminRouter from "./routes/admin.js";
 import chirpsRouter from "./routes/chirps.js";
 import authRouter from "./routes/auth.js";
 import usersRouter from "./routes/users.js";
+import polkaRouter from "./routes/polka.js"
 
 export const app = express();
 const PORT = 8080;
@@ -26,6 +27,7 @@ app.use("/admin", adminRouter);
 app.use("/api/chirps", chirpsRouter);
 app.use("/api", authRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/polka/webhooks", polkaRouter);
 
 app.get("/api/healthz", (req, res) => {
   res.set("Content-Type", "text/plain; charset=utf-8");

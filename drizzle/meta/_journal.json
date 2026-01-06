@@ -29,6 +29,13 @@
       "when": 1767556967724,
       "tag": "0003_supreme_hawkeye",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1767722339379,
+      "tag": "0004_wealthy_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

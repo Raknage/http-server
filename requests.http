@@ -60,3 +60,13 @@ Authorization: Bearer {{login.response.body.token}}
     "email": "new.email@test.com",
     "password": "password456"
 }
+
+### Upgrade User To Red
+POST {{baseUrl}}/api/polka/webhooks
+
+{
+  "event": "user.upgraded",
+  "data": {
+    "userId": {{login.response.body.id}}
+  }
+}

@@ -17,14 +17,15 @@ router
         email: credentials.email,
         hashedPassword: credentials.hashedPassword,
       });
+
       if (!newUser) {
         throw new BadRequestError(`User for email ${credentials.email} already exists`);
       }
       console.log(`User created:`);
       console.log(newUser);
-      res
-        .status(201)
-        .json({ id: newUser.id, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt, email: newUser.email });
+
+      const { hashedPassword, ...resUser } = newUser;
+      res.status(201).json(resUser);
     } catch (error) {
       next(error);
     }

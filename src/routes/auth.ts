@@ -27,13 +27,11 @@ router.post("/login", async (req, res, next) => {
       const refreshToken = makeRefreshToken();
       const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
       createRefreshToken(refreshToken, user.id, expiresAt);
+      const {hashedPassword, ...resUser} = user
       const responseJson = {
-        id: user.id,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        email: user.email,
         token: jwt,
         refreshToken,
+        ...resUser
       };
 
       console.log(`User login:`);
