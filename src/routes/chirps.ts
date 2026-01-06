@@ -21,7 +21,17 @@ router
         authorId = authorIdQuery;
       }
 
+      let sortOrder = "";
+      let sortOrderQuery = req.query.sort;
+      if (typeof sortOrderQuery === "string") {
+        sortOrder = sortOrderQuery;
+      }
+
       const chirps = await getChirps(authorId ? authorId : null);
+
+      if (sortOrder === "desc") {
+        chirps.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      }
 
       res.header("Content-Type", "application/json");
       res.status(200).json(chirps);
