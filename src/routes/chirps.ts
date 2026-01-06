@@ -15,7 +15,14 @@ router
   .route("/")
   .get(async (req, res, next) => {
     try {
-      const chirps = await getChirps();
+      let authorId = "";
+      let authorIdQuery = req.query.authorId;
+      if (typeof authorIdQuery === "string") {
+        authorId = authorIdQuery;
+      }
+
+      const chirps = await getChirps(authorId ? authorId : null);
+
       res.header("Content-Type", "application/json");
       res.status(200).json(chirps);
     } catch (error) {
