@@ -39,6 +39,10 @@ GET {{baseUrl}}/api/chirps
 ### Get Specific Chirp
 GET {{baseUrl}}/api/chirps/{{createChirp.response.body.id}}
 
+### Delete Chirp
+DELETE {{baseUrl}}/api/chirps/{{createChirp.response.body.id}}
+Authorization: Bearer {{login.response.body.token}}
+
 ### Refresh Token
 POST {{baseUrl}}/api/refresh
 Authorization: Bearer {{login.response.body.refreshToken}}

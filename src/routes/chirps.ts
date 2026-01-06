@@ -1,7 +1,7 @@
-import { UnauthorizedError, BadRequestError } from "../app/middleware/errorHandler.js";
+import { UnauthorizedError, BadRequestError, ForbiddenError, NotFoundError } from "../app/middleware/errorHandler.js";
 import { getBearerToken, validateJWT } from "../auth.js";
 import config from "../config.js";
-import { getChirps, createChirp, getChirpById } from "../db/queries/chirps.js";
+import { getChirps, createChirp, getChirpById, deleteChirp } from "../db/queries/chirps.js";
 import { Router } from "express";
 
 const router = Router();
@@ -29,7 +29,6 @@ router
       const validatedUserId = validateJWT(token, config.api.secret);
       console.log(`Validated user ID: ${validatedUserId}`);
       if (!validatedUserId) {
-        res.status(401).send("Invalid JWT");
         throw new UnauthorizedError("JWT validation failed");
       }
       const parsedBody: Chirp = req.body;
@@ -55,19 +54,54 @@ router
     }
   });
 
-router.get("/:chirpID", async (req, res, next) => {
-  try {
-    const chirp = await getChirpById(req.params.chirpID);
-    if (!chirp) {
-      res.status(404).send("Not found");
-      return;
-    }
+router
+  .route("/:chirpID")
+  .get(async (req, res, next) => {
+    try {
+      const chirp = await getChirpById(req.params.chirpID);
+      if (!chirp) {
+        throw new NotFoundError("Not found")
+      }
 
-    res.header("Content-Type", "application/json");
-    res.status(200).json(chirp);
-  } catch (error) {
-    next(error);
-  }
-});
+      res.header("Content-Type", "application/json");
+      res.status(200).json(chirp);
+    } catch (error) {
+      next(error);
+    }
+  })
+  .delete(async (req, res, next) => {
+    try {
+      const token = getBearerToken(req);
+      console.log(`validating token: ${token}`);
+      const validatedUserId = validateJWT(token, config.api.secret);
+      console.log(`Validated user ID: ${validatedUserId}`);
+      if (!validatedUserId) {
+        throw new ForbiddenError("JWT validation failed");
+      }
+
+      const chirp = await getChirpById(req.params.chirpID);
+      if (!chirp) {
+        throw new NotFoundError("Chirp not found");
+      }
+
+      if (chirp.userId !== validatedUserId) {
+        throw new ForbiddenError("Wrong user ID");
+      }
+
+      console.log("Deleting chirp:");
+      const deletedChirp = await deleteChirp(chirp.id);
+      console.log(deletedChirp);
+
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+/*
+Add a new DELETE /api/chirps/:chirpID route to your server that deletes a chirp from the database by its id.
+This is an authenticated endpoint, so be sure to check the token in the header. Only allow the deletion of a chirp if the user is the author of the chirp.
+If they are not, return a 403 status code.
+*/
 
 export default router;
